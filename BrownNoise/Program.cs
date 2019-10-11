@@ -73,39 +73,39 @@ namespace BrownNoise
 
             WaveFormat waveFormat = new WaveFormat(bitrate, bitdepth, stereo ? 2 : 1);
 
-            WaveFileWriter writer = new WaveFileWriter(file_name, waveFormat);
-
-            if(stereo)
+            using (WaveFileWriter writer = new WaveFileWriter(file_name, waveFormat))
             {
-                float[] nb = new float[vals.Length];
-
-                int nb_ctr = 0;
-                int val_ctr_l = 0;
-                int val_ctr_r = vals.Length/2;
-
-                for (int i = 0; i < vals.Length; i+=2)
+                //stereo is interleaved. correct the buffer if needed.
+                if (stereo)
                 {
+                    float[] nb = new float[vals.Length];
 
-                    nb[nb_ctr] = vals[val_ctr_l];
-                    nb[nb_ctr + 1] = vals[val_ctr_r];
+                    int val_ctr_l = 0;
+                    int val_ctr_r = vals.Length / 2;
 
-                    nb_ctr += 2;
-                    val_ctr_l++;
-                    val_ctr_r++;
+                    for (int i = 0; i < vals.Length; i += 2)
+                    {
+
+                        nb[i] = vals[val_ctr_l];
+                        nb[i + 1] = vals[val_ctr_r];
+
+                        val_ctr_l++;
+                        val_ctr_r++;
+                    }
+
+                    vals = nb;
                 }
 
-                vals = nb;
-            }
+                writer.WriteSamples(vals, 0, vals.Length);
 
-            writer.WriteSamples(vals, 0, vals.Length);
-
-            writer.Flush();
-            writer.Close();
+                writer.Flush();
+                writer.Close();
+            }  
         }
 
         private static double GetRandomSample()
         {
-            return (r.NextDouble() - 0.5);
+            return (r.NextDouble() - 0.5) * 2.0;
         }
     }
 }
