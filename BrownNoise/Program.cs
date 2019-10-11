@@ -22,6 +22,9 @@ namespace BrownNoise
                 BrownNoise(args[0], Convert.ToInt32(args[1]));
             else
                 BrownNoise();
+            else
+                 if (args.Length == 5)
+                BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]), Convert.ToInt32(args[4]));
 
 
             //Thread.Sleep(-1);
@@ -29,19 +32,20 @@ namespace BrownNoise
 
         private static Random r = new Random();
 
-        private static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16)
+        private static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, int lossy_div = 60)
         {
             float[] vals = new float[bitrate*seconds];
 
             //find scale values
             float max_dev = 0;
+            float lossy = 1.0f - (1.0f / (bitrate / (float)lossy_div));
 
             var last_sample = GetRandomSample();
 
             for (int i = 0; i < vals.Length; i++)
             {
                 vals[i] = (float)(last_sample + GetRandomSample());
-                last_sample = vals[i];
+                last_sample = vals[i]*lossy;
 
                 float dev = Math.Abs(vals[i]);
                 if (dev > max_dev)
@@ -71,7 +75,7 @@ namespace BrownNoise
 
         private static double GetRandomSample()
         {
-            return (r.NextDouble() - 0.5) * 2.0;
+            return (r.NextDouble() - 0.5);
         }
     }
 }
