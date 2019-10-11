@@ -15,26 +15,34 @@ namespace BrownNoise
         {
             //args file_name seconds
 
-            if(args.Length == 4)
-                BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]));
-            else
+            try
+            {
+                if (args.Length == 4)
+                    BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]));
+                else
                 if (args.Length == 2)
-                BrownNoise(args[0], Convert.ToInt32(args[1]));
-            else
-                BrownNoise();
-            else
-                 if (args.Length == 5)
-                BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]), Convert.ToInt32(args[4]));
-
+                    BrownNoise(args[0], Convert.ToInt32(args[1]));
+                else
+                 if (args.Length == 6)
+                    BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]), Convert.ToBoolean(args[4]), Convert.ToInt32(args[5]));
+                else
+                    BrownNoise();
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("Error generating brown noise.");
+                Console.WriteLine("Usage: BrownNoise.exe file_name seconds bitrate bitdepth");
+            }
+            
 
             //Thread.Sleep(-1);
         }
 
         private static Random r = new Random();
 
-        private static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, int lossy_div = 60)
+        private static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, bool stereo = false, int lossy_div = 60)
         {
-            float[] vals = new float[bitrate*seconds];
+            float[] vals = new float[bitrate*seconds*(stereo ? 2 : 1)];
 
             //find scale values
             float max_dev = 0;
@@ -63,9 +71,31 @@ namespace BrownNoise
                 }
             }
 
-            WaveFormat waveFormat = new WaveFormat(bitrate, bitdepth, 1);
+            WaveFormat waveFormat = new WaveFormat(bitrate, bitdepth, stereo ? 2 : 1);
 
             WaveFileWriter writer = new WaveFileWriter(file_name, waveFormat);
+
+            if(stereo)
+            {
+                float[] nb = new float[vals.Length];
+
+                int nb_ctr = 0;
+                int val_ctr_l = 0;
+                int val_ctr_r = vals.Length/2;
+
+                for (int i = 0; i < vals.Length; i+=2)
+                {
+
+                    nb[nb_ctr] = vals[val_ctr_l];
+                    nb[nb_ctr + 1] = vals[val_ctr_r];
+
+                    nb_ctr += 2;
+                    val_ctr_l++;
+                    val_ctr_r++;
+                }
+
+                vals = nb;
+            }
 
             writer.WriteSamples(vals, 0, vals.Length);
 
