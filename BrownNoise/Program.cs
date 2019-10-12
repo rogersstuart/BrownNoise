@@ -1,10 +1,9 @@
 ﻿using NAudio.Wave;
 using System;
-using System.Numerics;
 
 namespace BrownNoise
 {
-    class Program
+    public class Program
     {
         static void Main(string[] args)
         {
@@ -19,6 +18,9 @@ namespace BrownNoise
                  if (args.Length == 6)
                     BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]), Convert.ToBoolean(args[4]), Convert.ToInt32(args[5]));
                 else
+                    if (args.Length == 7)
+                    BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]), Convert.ToBoolean(args[4]), Convert.ToInt32(args[5]), Convert.ToBoolean(args[6]));
+                else
                     BrownNoise();
             }
             catch(Exception ex)
@@ -32,8 +34,10 @@ namespace BrownNoise
 
         private static Random r = new Random();
 
-        private static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, bool stereo = false, int lossy_div = 60)
+        public static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, bool stereo = false, int lossy_div = 60, bool max_q = false)
         {
+            var now_is = DateTime.Now;
+
             float[] vals = new float[bitrate*seconds*(stereo ? 2 : 1)];
 
             //find scale values
@@ -63,7 +67,12 @@ namespace BrownNoise
                 }
             }
 
-            WaveFormat waveFormat = new WaveFormat(bitrate, bitdepth, stereo ? 2 : 1);
+            WaveFormat waveFormat;
+
+            if (max_q)
+                waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(bitrate, stereo ? 2 : 1);
+            else
+                waveFormat = new WaveFormat(bitrate, bitdepth, stereo ? 2 : 1);
 
             using (WaveFileWriter writer = new WaveFileWriter(file_name, waveFormat))
             {
@@ -92,7 +101,13 @@ namespace BrownNoise
 
                 writer.Flush();
                 writer.Close();
-            }  
+            }
+
+            var now_is_2 = DateTime.Now;
+
+            Console.WriteLine("completed in " + (now_is_2 - now_is).TotalMilliseconds);
+
+            GC.Collect();
         }
 
         private static double GetRandomSample()
