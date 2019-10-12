@@ -1,11 +1,6 @@
 ﻿using NAudio.Wave;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Numerics;
 
 namespace BrownNoise
 {
@@ -13,8 +8,6 @@ namespace BrownNoise
     {
         static void Main(string[] args)
         {
-            //args file_name seconds
-
             try
             {
                 if (args.Length == 4)
@@ -33,7 +26,6 @@ namespace BrownNoise
                 Console.WriteLine("Error generating brown noise.");
                 Console.WriteLine("Usage: BrownNoise.exe file_name seconds bitrate bitdepth");
             }
-            
 
             //Thread.Sleep(-1);
         }
