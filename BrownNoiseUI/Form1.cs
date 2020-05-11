@@ -30,7 +30,7 @@ namespace BrownNoiseUI
             {
                 BrownNoise.Program.BrownNoise(textBox3.Text,
                 Convert.ToInt32(textBox1.Text), Convert.ToInt32(textBox2.Text),
-                comboBox1.SelectedIndex == 0 ? 16 : 24, comboBox2.SelectedIndex == 0 ? false : true, trackBar1.Value, comboBox1.SelectedIndex == 2 ? true : false);
+                comboBox1.SelectedIndex == 0 ? 16 : 24, comboBox2.SelectedIndex == 0 ? false : true, trackBar1.Value);
 
                 Process.Start(@textBox3.Text);
             }

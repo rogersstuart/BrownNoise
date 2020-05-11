@@ -1,5 +1,9 @@
 ﻿using NAudio.Wave;
+using System.CommandLine;
 using System;
+using System.IO;
+using System.CommandLine.Invocation;
+using System.Windows.Forms;
 
 namespace BrownNoise
 {
@@ -7,34 +11,44 @@ namespace BrownNoise
     {
         static void Main(string[] args)
         {
-            try
-            {
-                if (args.Length == 4)
-                    BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]));
-                else
-                if (args.Length == 2)
-                    BrownNoise(args[0], Convert.ToInt32(args[1]));
-                else
-                 if (args.Length == 6)
-                    BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]), Convert.ToBoolean(args[4]), Convert.ToInt32(args[5]));
-                else
-                    if (args.Length == 7)
-                    BrownNoise(args[0], Convert.ToInt32(args[1]), Convert.ToInt32(args[2]), Convert.ToInt32(args[3]), Convert.ToBoolean(args[4]), Convert.ToInt32(args[5]), Convert.ToBoolean(args[6]));
-                else
-                    BrownNoise();
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine("Error generating brown noise.");
-                Console.WriteLine("Usage: BrownNoise.exe file_name seconds bitrate bitdepth");
-            }
+            var root_command = new RootCommand{ 
+                new Option<FileInfo>("-f", getDefaultValue: () => new FileInfo("out.wav"), "Where the audio will be stored"),
+                new Option<int>("-s", getDefaultValue: () => 60, "The length of the audio clip"),
+                new Option<int>("-b", getDefaultValue: () => 44100, "The audio bitrate"),
+                new Option<int>("-d", getDefaultValue: () => 16, "The audio bit depth"),
+                new Option<bool>("-m", getDefaultValue: () => false, "Enable stereo audio"),
+                new Option<int>("-l", getDefaultValue: () => 60, "Leakyness of the integrator")
+            };
 
-            //Thread.Sleep(-1);
+            root_command.Description = "Generates a WAV file containing processed noise.";
+
+            root_command.Handler = CommandHandler.Create(() =>
+            {
+                try
+                {
+                    var res = root_command.Parse(args);
+
+                    BrownNoise(
+                        ((FileInfo)res.ValueForOption("-f")).FullName,
+                        (int)res.ValueForOption("-s"),
+                        (int)res.ValueForOption("-b"),
+                        (int)res.ValueForOption("-d"),
+                        (bool)res.ValueForOption("-m"),
+                        (int)res.ValueForOption("-l")
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("An error occured. The operation has been aborted.");
+                }
+            });
+
+            root_command.InvokeAsync(args).Wait();
         }
 
         private static Random r = new Random();
 
-        public static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, bool stereo = false, int lossy_div = 60, bool max_q = false)
+        public static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, bool stereo = false, int lossy_div = 60)
         {
             var now_is = DateTime.Now;
 
@@ -69,7 +83,7 @@ namespace BrownNoise
 
             WaveFormat waveFormat;
 
-            if (max_q)
+            if (bitdepth == 32)
                 waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(bitrate, stereo ? 2 : 1);
             else
                 waveFormat = new WaveFormat(bitrate, bitdepth, stereo ? 2 : 1);
