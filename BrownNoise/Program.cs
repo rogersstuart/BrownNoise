@@ -4,83 +4,113 @@ using System;
 using System.IO;
 using System.CommandLine.Invocation;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace BrownNoise
 {
     public class Program
     {
-        static void Main(string[] args)
+        static async Task<int> Main(string[] args)
         {
-            var root_command = new RootCommand{ 
-                new Option<FileInfo>("-f", getDefaultValue: () => new FileInfo("out.wav"), "Where the audio will be stored"),
-                new Option<int>("-s", getDefaultValue: () => 60, "The length of the audio clip"),
-                new Option<int>("-b", getDefaultValue: () => 44100, "The audio bitrate"),
-                new Option<int>("-d", getDefaultValue: () => 16, "The audio bit depth"),
-                new Option<bool>("-m", getDefaultValue: () => false, "Enable stereo audio"),
-                new Option<int>("-l", getDefaultValue: () => 60, "Leakyness of the integrator")
-            };
+            var fileOption = new Option<FileInfo>(
+                aliases: new[] { "--file", "-f" },
+                getDefaultValue: () => new FileInfo("out.wav"),
+                description: "Where the audio will be stored");
+                
+            var durationOption = new Option<int>(
+                aliases: new[] { "--seconds", "-s" },
+                getDefaultValue: () => 60,
+                description: "The length of the audio clip in seconds");
+            
+            var bitrateOption = new Option<int>(
+                aliases: new[] { "--bitrate", "-b" },
+                getDefaultValue: () => 44100,
+                description: "The audio bitrate");
+            
+            var bitdepthOption = new Option<int>(
+                aliases: new[] { "--bitdepth", "-d" },
+                getDefaultValue: () => 16,
+                description: "The audio bit depth");
+            
+            var stereoOption = new Option<bool>(
+                aliases: new[] { "--stereo", "-m" },
+                getDefaultValue: () => false,
+                description: "Enable stereo audio");
+            
+            var leakinessOption = new Option<int>(
+                aliases: new[] { "--leakiness", "-l" },
+                getDefaultValue: () => 60,
+                description: "Leakyness of the integrator");
 
-            root_command.Description = "Generates a WAV file containing processed noise.";
-
-            root_command.Handler = CommandHandler.Create(() =>
+            var rootCommand = new RootCommand("Generates a WAV file containing brown noise")
             {
-                try
-                {
-                    var res = root_command.Parse(args);
-
-                    BrownNoise(
-                        ((FileInfo)res.ValueForOption("-f")).FullName,
-                        (int)res.ValueForOption("-s"),
-                        (int)res.ValueForOption("-b"),
-                        (int)res.ValueForOption("-d"),
-                        (bool)res.ValueForOption("-m"),
-                        (int)res.ValueForOption("-l")
-                    );
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("An error occured. The operation has been aborted.");
-                }
+                fileOption,
+                durationOption,
+                bitrateOption,
+                bitdepthOption,
+                stereoOption,
+                leakinessOption
+            };
+            
+            rootCommand.Handler = CommandHandler.Create<FileInfo, int, int, int, bool, int>((file, seconds, bitrate, bitdepth, stereo, leakiness) =>
+            {
+                BrownNoise(file.FullName, seconds, bitrate, bitdepth, stereo, leakiness);
             });
-
-            root_command.InvokeAsync(args).Wait();
+            
+            return await rootCommand.InvokeAsync(args);
         }
 
         private static Random r = new Random();
 
-        public static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, int bitdepth = 16, bool stereo = false, int lossy_div = 60)
+        public static void BrownNoise(string file_name = "out.wav", int seconds = 60, int bitrate = 44100, 
+            int bitdepth = 16, bool stereo = false, int lossy_div = 60, 
+            IProgress<int> progress = null)
         {
             var now_is = DateTime.Now;
-
-            float[] vals = new float[bitrate*seconds*(stereo ? 2 : 1)];
-
-            //find scale values
-            float max_dev = 0;
+            float[] vals = new float[bitrate * seconds * (stereo ? 2 : 1)];
+            
             float lossy = 1.0f - (1.0f / (bitrate / (float)lossy_div));
-
-            var last_sample = GetRandomSample();
-
-            for (int i = 0; i < vals.Length; i++)
+            
+            // Generate mono or left channel
+            float last_sample = (float)GetRandomSample();
+            float max_dev = 0;
+            for (int i = 0; i < bitrate * seconds; i++)
             {
                 vals[i] = (float)(last_sample + GetRandomSample());
-                last_sample = vals[i]*lossy;
-
+                last_sample = vals[i] * lossy;
+                
                 float dev = Math.Abs(vals[i]);
                 if (dev > max_dev)
                     max_dev = dev;
-            }
-
-            //scale samples
-            if (max_dev > 1.0f)
-            {
-                float scalar = 1.0f - ((max_dev - 1.0f) / max_dev);
-
-                for (int i = 0; i < vals.Length; i++)
+                
+                // Report progress every 1%
+                if (progress != null && i % (vals.Length / 100) == 0)
                 {
-                    vals[i] = vals[i] * scalar;
+                    progress.Report((int)((i * 100.0) / vals.Length));
                 }
             }
-
+            
+            // Generate right channel if stereo
+            if (stereo)
+            {
+                last_sample = (float)GetRandomSample();
+                for (int i = bitrate * seconds; i < vals.Length; i++)
+                {
+                    vals[i] = last_sample + (float)GetRandomSample();
+                    last_sample = vals[i] * lossy;
+                }
+            }
+            
+            // Normalize if needed
+            if (max_dev > 1.0f)
+            {
+                float scalar = 1.0f / max_dev;
+                for (int i = 0; i < vals.Length; i++)
+                {
+                    vals[i] *= scalar;
+                }
+            }
+            
             WaveFormat waveFormat;
 
             if (bitdepth == 32)
